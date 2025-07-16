@@ -22,7 +22,7 @@ namespace AuthService.Data
                 Id = adminId,
                 Email = "admin@example.com",
                 Username = "admin",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("YourSecureAdminPassword"),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin"),
                 Role = Role.Admin,
                 FullName = "Administrator",
                 CreatedAt = DateTime.UtcNow
