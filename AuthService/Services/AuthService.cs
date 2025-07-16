@@ -1,5 +1,6 @@
 ﻿using AuthService.Data;
 using AuthService.Dtos;
+using AuthService.Exceptions;
 using AuthService.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -38,12 +39,13 @@ namespace AuthService.Services
             return true;
         }
 
-        public async Task<LoginResponseDto?> Authenticate(string username, string password, string ip)
+        public async Task<LoginResponse?> Authenticate(string username, string password, string ip)
         {
             var since = DateTime.UtcNow.AddMinutes(-15);
             var failedCount = await _dbContext.LoginAttempts
                 .CountAsync(a => a.IpAddress == ip && !a.IsSuccessful && a.Timestamp > since);
 
+            int retryAfterMinutes = 15;
             if (failedCount >= 5)
             {
                 var blockedAttempt = new LoginAttempt
@@ -57,7 +59,7 @@ namespace AuthService.Services
                 };
                 _dbContext.LoginAttempts.Add(blockedAttempt);
                 await _dbContext.SaveChangesAsync();
-                return null;
+                throw new IpLockedException(retryAfterMinutes);
             }
 
 
@@ -100,7 +102,7 @@ namespace AuthService.Services
 
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
 
-            return new LoginResponseDto
+            return new LoginResponse
             {
                 Token = jwt,
                 Username = user.Username!,

@@ -1,8 +1,10 @@
 ﻿
 using AuthService.Dtos;
+using AuthService.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Authentication;
 
 namespace AuthService.Controllers
 {
@@ -30,16 +32,21 @@ namespace AuthService.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-            if (string.IsNullOrEmpty(ipAddress))
-                return BadRequest("Invalid ipAddress");
-            var loginResponse = await _authService.Authenticate(request.Username, request.Password, ipAddress);
-            if (loginResponse == null)
-                return Unauthorized("Invalid username or password");
-
-            return Ok(loginResponse);
+            try
+            {
+                var response = await _authService.Authenticate(request.Username, request.Password, HttpContext.Connection.RemoteIpAddress!.ToString());
+                return Ok(response);
+            }
+            catch (IpLockedException ex)
+            {
+                return StatusCode(429, new { error = "ip_locked", message = ex.Message, retry_after_minutes = ex.RetryAfterMinutes });
+            }
+            catch (AuthenticationException ex)
+            {
+                return Unauthorized(new { error = "authentication_failed", message = ex.Message });
+            }
         }
 
         [Authorize(Roles = "Admin")]
