@@ -4,6 +4,7 @@ using AuthService.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 
@@ -39,6 +40,27 @@ namespace AuthService.Services
 
         public async Task<LoginResponseDto?> Authenticate(string username, string password, string ip)
         {
+            var since = DateTime.UtcNow.AddMinutes(-15);
+            var failedCount = await _dbContext.LoginAttempts
+                .CountAsync(a => a.IpAddress == ip && !a.IsSuccessful && a.Timestamp > since);
+
+            if (failedCount >= 5)
+            {
+                var blockedAttempt = new LoginAttempt
+                {
+                    UserId = null,
+                    UsernameAttempted = username,
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = ip,
+                    IsSuccessful = false,
+                    Reason = "ip locked"
+                };
+                _dbContext.LoginAttempts.Add(blockedAttempt);
+                await _dbContext.SaveChangesAsync();
+                return null;
+            }
+
+
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
             var isSuccess = user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
 
