@@ -32,7 +32,10 @@ namespace AuthService.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginRequest request)
         {
-            var loginResponse = await _authService.Authenticate(request.Username, request.Password);
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            if (string.IsNullOrEmpty(ipAddress))
+                return BadRequest("Invalid ipAddress");
+            var loginResponse = await _authService.Authenticate(request.Username, request.Password, ipAddress);
             if (loginResponse == null)
                 return Unauthorized("Invalid username or password");
 

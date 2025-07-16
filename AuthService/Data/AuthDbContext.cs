@@ -8,6 +8,7 @@ namespace AuthService.Data
         public AuthDbContext(DbContextOptions<AuthDbContext> options) : base(options) { }
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<LoginAttempt> LoginAttempts => Set<LoginAttempt>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

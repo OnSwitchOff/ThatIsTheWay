@@ -37,11 +37,28 @@ namespace AuthService.Services
             return true;
         }
 
-        public async Task<LoginResponseDto?> Authenticate(string username, string password)
+        public async Task<LoginResponseDto?> Authenticate(string username, string password, string ip)
         {
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
-            if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+            var isSuccess = user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+
+            // Log attempt
+            var attempt = new LoginAttempt
+            {
+                UserId = user?.Id,
+                UsernameAttempted = username,
+                Timestamp = DateTime.UtcNow,
+                IpAddress = ip,
+                IsSuccessful = isSuccess,
+                Reason = isSuccess ? null : (user == null ? "user not found" : "invalid password")
+            };
+
+            _dbContext.LoginAttempts.Add(attempt);
+            await _dbContext.SaveChangesAsync();
+
+            if (!isSuccess)
                 return null;
+
 
             var claims = new[]
             {
