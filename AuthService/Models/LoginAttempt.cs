@@ -9,6 +9,8 @@
         public string? IpAddress { get; set; }
         public bool IsSuccessful { get; set; }
         public string? Reason { get; set; }
+        public string? Country { get; set; }
+        public string? Region { get; set; }
     }
 
 }
