@@ -54,16 +54,17 @@ namespace AuthService.Controllers
             return Ok("User role updated");
         }
 
+        [Authorize]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
         {
-            var user = await _authService.GetUserById(request.UserId);
-            if (user == null)
-                return NotFound();
+            var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (currentUserId == null || request.UserId.ToString() != currentUserId)
+                return Forbid("You can only change your own password.");
 
             var result = await _authService.ChangeUserPassword(request.UserId, request.NewPassword);
             if (!result)
-                return BadRequest("Password change failed");
+                return NotFound("User not found or password change failed");
 
             return Ok("Password updated");
         }
