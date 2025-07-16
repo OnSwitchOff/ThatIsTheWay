@@ -2,6 +2,7 @@
 using AuthService.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace AuthService.Controllers
 {
@@ -51,6 +52,20 @@ namespace AuthService.Controllers
                 return BadRequest("Role change failed");
 
             return Ok("User role updated");
+        }
+
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+        {
+            var user = await _authService.GetUserById(request.UserId);
+            if (user == null)
+                return NotFound();
+
+            var result = await _authService.ChangeUserPassword(request.UserId, request.NewPassword);
+            if (!result)
+                return BadRequest("Password change failed");
+
+            return Ok("Password updated");
         }
     }
 

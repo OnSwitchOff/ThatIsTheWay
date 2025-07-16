@@ -25,7 +25,8 @@ namespace AuthService.Data
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin"),
                 Role = Role.Admin,
                 FullName = "Administrator",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                MustChangePassword = true
             });
 
             base.OnModelCreating(modelBuilder);

@@ -65,7 +65,8 @@ namespace AuthService.Services
             {
                 Token = jwt,
                 Username = user.Username!,
-                UserId = user.Id
+                UserId = user.Id,
+                RequiresPasswordChange = user.MustChangePassword,
             };
         }
 
@@ -85,6 +86,19 @@ namespace AuthService.Services
 
             user.Role = newRole;
             await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> ChangeUserPassword(Guid userId, string newPassword)
+        {
+            var user = await GetUserById(userId);
+            if (user == null)
+                return false;
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            user.MustChangePassword = false; // unset flag
+            await _dbContext.SaveChangesAsync();
+
             return true;
         }
     }
