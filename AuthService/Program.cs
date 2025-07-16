@@ -1,3 +1,4 @@
+using AspNetCoreRateLimit;
 using AuthService.Data;
 using AuthService.Models;
 using AuthService.Services;
@@ -12,6 +13,11 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.Configure<LockoutSettings>(builder.Configuration.GetSection("LockoutSettings"));
+
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddInMemoryRateLimiting();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
 builder.Services.AddHttpClient<IGeoIpService, GeoIpService>();
 builder.Services.AddScoped<AuthService.Services.AuthService>();
@@ -42,6 +48,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseIpRateLimiting();
 
 app.UseHttpsRedirection();
 
