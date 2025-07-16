@@ -47,14 +47,19 @@ namespace AuthService.Services
 
         public async Task<LoginResponse?> Authenticate(string username, string password, string ip)
         {
-            // Trusted IPs bypass lockout
-            if (!_lockoutSettings.TrustedIps.Contains(ip))
-            {
-                var since = DateTime.UtcNow.AddMinutes(-_lockoutSettings.LockoutMinutes);
-                var failedCount = await _dbContext.LoginAttempts
-                    .CountAsync(a => a.IpAddress == ip && !a.IsSuccessful && a.Timestamp > since);
+            // Trusted IPs bypass IP lockout, but not user lockout
+            bool isTrustedIp = _lockoutSettings.TrustedIps.Contains(ip);
 
-                if (failedCount >= _lockoutSettings.FailedAttemptsThreshold)
+            var sinceIp = DateTime.UtcNow.AddMinutes(-_lockoutSettings.LockoutMinutes);
+            var sinceUser = DateTime.UtcNow.AddMinutes(-_lockoutSettings.UserLockoutMinutes);
+
+            // IP-based lockout (unless trusted IP)
+            if (!isTrustedIp)
+            {
+                var failedCountIp = await _dbContext.LoginAttempts
+                    .CountAsync(a => a.IpAddress == ip && !a.IsSuccessful && a.Timestamp > sinceIp);
+
+                if (failedCountIp >= _lockoutSettings.FailedAttemptsThreshold)
                 {
                     var geoInfo = await _geoIpService.GetInfo(ip);
                     var blockedAttempt = new LoginAttempt
@@ -74,7 +79,31 @@ namespace AuthService.Services
                 }
             }
 
-            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);// User-based lockout
+            if (user != null)
+            {
+                var failedCountUser = await _dbContext.LoginAttempts
+                    .CountAsync(a => a.UserId == user.Id && !a.IsSuccessful && a.Timestamp > sinceUser);
+
+                if (failedCountUser >= _lockoutSettings.UserFailedAttemptsThreshold)
+                {
+                    var geoInfo = await _geoIpService.GetInfo(ip);
+                    var blockedAttempt = new LoginAttempt
+                    {
+                        UserId = user.Id,
+                        UsernameAttempted = username,
+                        Timestamp = DateTime.UtcNow,
+                        IpAddress = ip,
+                        IsSuccessful = false,
+                        Reason = "user locked",
+                        Country = geoInfo.Country,
+                        Region = geoInfo.Region
+                    };
+                    _dbContext.LoginAttempts.Add(blockedAttempt);
+                    await _dbContext.SaveChangesAsync();
+                    throw new UserLockedException(_lockoutSettings.UserLockoutMinutes);
+                }
+            }
             var isSuccess = user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
 
             var geoData = await _geoIpService.GetInfo(ip);
@@ -96,7 +125,6 @@ namespace AuthService.Services
 
             if (!isSuccess)
                 throw new AuthenticationException("Invalid username or password.");
-
 
             var claims = new[]
             {
