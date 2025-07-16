@@ -46,7 +46,8 @@ namespace AuthService.Services
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username)
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
@@ -63,9 +64,28 @@ namespace AuthService.Services
             return new LoginResponseDto
             {
                 Token = jwt,
-                Username = user.Username,
+                Username = user.Username!,
                 UserId = user.Id
             };
+        }
+
+        public async Task<User?> GetUserById(Guid userId)
+        {
+            return await _dbContext.Users.FindAsync(userId);
+        }
+
+        public async Task<bool> ChangeUserRole(Guid userId, Role newRole)
+        {
+            if (newRole == Role.Admin)
+                return false;            
+
+            var user = await _dbContext.Users.FindAsync(userId);
+            if (user == null)
+                return false;
+
+            user.Role = newRole;
+            await _dbContext.SaveChangesAsync();
+            return true;
         }
     }
 

@@ -23,7 +23,10 @@ public class ExpensesController : ControllerBase
     public ActionResult<IEnumerable<Expense>> GetAll()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var expenses = _context.Expenses
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        var expenses = role == "Admin" ? 
+            _context.Expenses.ToList() :
+            _context.Expenses
             .Where(e => e.UserId == Guid.Parse(userId!))
             .ToList();
 

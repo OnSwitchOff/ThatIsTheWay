@@ -1,5 +1,6 @@
 ﻿
 using AuthService.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AuthService.Controllers
@@ -35,6 +36,21 @@ namespace AuthService.Controllers
                 return Unauthorized("Invalid username or password");
 
             return Ok(loginResponse);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost("change-role")]
+        public async Task<IActionResult> ChangeRole(ChangeRoleRequest request)
+        {
+            var user = await _authService.GetUserById(request.UserId);
+            if (user == null)
+                return NotFound("User not found");
+
+            var result = await _authService.ChangeUserRole(request.UserId, request.NewRole);
+            if (!result)
+                return BadRequest("Role change failed");
+
+            return Ok("User role updated");
         }
     }
 

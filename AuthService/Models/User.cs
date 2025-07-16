@@ -10,6 +10,8 @@
         public string? Username { get; set; }
         public string? FullName { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public Role Role { get; set; } = Role.User;
+
     }
 
 }
