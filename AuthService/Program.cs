@@ -1,4 +1,5 @@
 using AuthService.Data;
+using AuthService.Models;
 using AuthService.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.Configure<LockoutSettings>(builder.Configuration.GetSection("LockoutSettings"));
 
 builder.Services.AddHttpClient<IGeoIpService, GeoIpService>();
 builder.Services.AddScoped<AuthService.Services.AuthService>();
