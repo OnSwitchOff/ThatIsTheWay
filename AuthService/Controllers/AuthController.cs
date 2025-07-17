@@ -21,8 +21,13 @@ namespace AuthService.Controllers
             _authService = authService;
         }
 
+        /// <summary>
+        /// Registers a new user.
+        /// </summary>
+        /// <param name="request">Registration details.</param>
+        /// <returns>Result of registration.</returns>
         [HttpPost("register")]
-        public async Task<IActionResult> Register(RegisterRequest request)
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             var result = await _authService.RegisterUser(request.Email, request.Password);
             if (!result)

@@ -38,8 +38,6 @@ builder.Services.AddScoped<AuthService.Services.AuthService>(sp =>
     return new AuthService.Services.AuthService(dbContext, jwtKey, lockoutOptions, geoIpService, emailService, cache);
 });
 
-
-
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
