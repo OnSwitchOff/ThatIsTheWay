@@ -1,10 +1,10 @@
-﻿
-using AuthService.Dtos;
+﻿using AuthService.Dtos;
 using AuthService.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Authentication;
+using System.Security.Claims;
 
 namespace AuthService.Controllers
 {
@@ -77,6 +77,94 @@ namespace AuthService.Controllers
                 return NotFound("User not found or password change failed");
 
             return Ok("Password updated");
+        }
+
+        [Authorize]
+        [HttpDelete("delete/{id:guid}")]
+        public async Task<IActionResult> DeleteUser(Guid id)
+        {
+            var userToDelete = await _authService.GetUserById(id);
+            if (userToDelete == null || userToDelete.IsDeleted)
+                return NotFound("User not found");
+
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            // Only allow if deleting own account, or if current user is Admin or Manager
+            if (currentUserId == null ||
+                (currentUserId != id.ToString() && currentUserRole != "Admin" && currentUserRole != "Manager"))
+            {
+                return Forbid("You are not allowed to delete this user.");
+            }
+
+            var result = await _authService.SoftDeleteUser(id);
+            if (!result)
+                return BadRequest("User could not be deleted.");
+
+            return NoContent();
+        }
+
+        [Authorize]
+        [HttpPost("restore/{id:guid}")]
+        public async Task<IActionResult> RestoreUser(Guid id)
+        {
+            var userToRestore = await _authService.GetUserById(id);
+            if (userToRestore == null || !userToRestore.IsDeleted)
+                return NotFound("User not found or not deleted.");
+
+            var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var currentUserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+            // Only allow if restoring own account, or if current user is Admin or Manager
+            if (currentUserId == null ||
+                (currentUserId != id.ToString() && currentUserRole != "Admin" && currentUserRole != "Manager"))
+            {
+                return Forbid("You are not allowed to restore this user.");
+            }
+
+            var result = await _authService.RestoreUser(id);
+            if (!result)
+                return BadRequest("User could not be restored.");
+
+            return Ok("User restored successfully.");
+        }
+
+        [Authorize(Roles = "Admin,Manager")]
+        [HttpPost("confirm/{id:guid}")]
+        public async Task<IActionResult> ConfirmUser(Guid id)
+        {
+            var user = await _authService.GetUserById(id);
+            if (user == null)
+                return NotFound("User not found.");
+
+            if (user.IsConfirmed)
+                return BadRequest("User is already confirmed.");
+
+            var result = await _authService.ConfirmUser(id);
+            if (!result)
+                return BadRequest("User could not be confirmed.");
+
+            return Ok("User confirmed successfully.");
+        }
+
+        [HttpGet("confirm-email")]
+        public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
+        {
+            var user = await _authService.GetUserByConfirmationToken(token);
+            if (user == null || user.IsConfirmed)
+                return BadRequest("Invalid or expired token.");
+
+            var result = await _authService.ConfirmUserByToken(token);
+            if (!result)
+                return BadRequest("User could not be confirmed.");
+
+            return Ok("Email confirmed successfully.");
+        }
+
+        [HttpGet("health")]
+        public IActionResult Health()
+        {
+            return Ok(new { status = "Healthy" });
         }
     }
 

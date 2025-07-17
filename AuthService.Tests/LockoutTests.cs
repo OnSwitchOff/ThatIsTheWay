@@ -2,6 +2,7 @@
 using AuthService.Exceptions;
 using AuthService.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace AuthService.Tests;
@@ -45,8 +46,10 @@ public class LockoutTests
 
         // Use a fake GeoIpService (or mock)
         var geoService = new FakeGeoIpService();
+        var emailService = new FakeEmailService();
         var jwtKey = "test_jwt_key_123"; // Use any test key string
-        var service = new Services.AuthService(dbContext, jwtKey, options, geoService);
+        var memoryCache = new MemoryCache(new MemoryCacheOptions()); // Add this line
+        var service = new Services.AuthService(dbContext, jwtKey, options, geoService, emailService, memoryCache); // Pass memoryCache
 
         // Act: Fail to login 3 times (user threshold) - should lock user
         for (int i = 0; i < lockoutSettings.UserFailedAttemptsThreshold; i++)
@@ -66,5 +69,10 @@ public class LockoutTests
     public class FakeGeoIpService : AuthService.Services.IGeoIpService
     {
         public Task<(string Country, string Region)> GetInfo(string ip) => Task.FromResult(("TestCountry", "TestRegion"));
+    }
+
+    public class FakeEmailService : AuthService.Services.IEmailService
+    {
+        public Task SendEmailAsync(string to, string subject, string body) => Task.CompletedTask;
     }
 }

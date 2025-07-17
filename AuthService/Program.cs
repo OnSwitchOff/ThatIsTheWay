@@ -4,6 +4,7 @@ using AuthService.Models;
 using AuthService.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -21,18 +22,23 @@ builder.Services.AddInMemoryRateLimiting();
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
 builder.Services.AddHttpClient<IGeoIpService, GeoIpService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Add this line to read the JWT key from configuration
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured.");
 
 // Update DI registration for AuthService
-builder.Services.AddScoped(sp =>
+builder.Services.AddScoped<AuthService.Services.AuthService>(sp =>
 {
     var dbContext = sp.GetRequiredService<AuthDbContext>();
     var lockoutOptions = sp.GetRequiredService<IOptions<LockoutSettings>>();
     var geoIpService = sp.GetRequiredService<IGeoIpService>();
-    return new AuthService.Services.AuthService(dbContext, jwtKey, lockoutOptions, geoIpService);
+    var emailService = sp.GetRequiredService<IEmailService>();
+    var cache = sp.GetRequiredService<IMemoryCache>();
+    return new AuthService.Services.AuthService(dbContext, jwtKey, lockoutOptions, geoIpService, emailService, cache);
 });
+
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -51,6 +57,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHostedService<AuthService.Services.UserCleanupService>();
 
 var app = builder.Build();
 
