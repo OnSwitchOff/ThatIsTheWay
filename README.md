@@ -11,30 +11,30 @@ AuthService provides authentication, registration, and user management APIs for 
 ## Setup
 
 1. **Clone the repository:**
-	```bash
-	git clone <your-repo-url>
-	```
+```bash
+git clone <your-repo-url>
+```
 
 2. **Navigate to the AuthService directory:**
-	```bash	
-	cd AuthService
-	```
+```bash	
+cd AuthService
+```
 
 3. **Restore dependencies:**
-	```bash
-	dotnet restore
-	```
+```bash
+dotnet restore
+```
 
 4. **Apply database migrations:**
    Ensure your connection string in `appsettings.js	on` is correct.
-	```bash
-	dotnet ef database update
-	```
+```bash
+dotnet ef database update
+```
 
 5. **Run the service:**	
-	```bash
-	dotnet run
-	```
+```bash
+dotnet run
+```
 
 6. **Access Swagger UI for API documentation:**
 Open [http://localhost:5000/swagger](http://localhost:5000/swagger) (or the port specified in `launchSettings.json`).
@@ -77,16 +77,16 @@ Configuration is managed via `appsettings.json` and environment variables. Key s
 ## Testing
 
 Run unit tests:
-	```bash
-	dotnet test
-	```
+```bash
+dotnet test
+```
 
 ## Docker
 
 To build and run with Docker:
-	```bash
-	docker build -t authservice . docker run -p 5000:80 authservice
-	```
+```bash
+docker build -t authservice . docker run -p 5000:80 authservice
+```
 
 ## Contributing
 
