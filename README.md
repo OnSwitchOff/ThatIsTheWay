@@ -77,16 +77,14 @@ Configuration is managed via `appsettings.json` and environment variables. Key s
 ## Testing
 
 Run unit tests:
-
-	```bash
+	```
 	dotnet test
 	```
 
 ## Docker
 
 To build and run with Docker:
-
-	```bash
+	```
 	docker build -t authservice . docker run -p 5000:80 authservice
 	```
 
