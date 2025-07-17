@@ -11,13 +11,6 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Explicitly configure Kestrel to listen on 8080 (HTTP) and 8081 (HTTPS)
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(8080); // HTTP
-    options.ListenAnyIP(8081, listenOptions => listenOptions.UseHttps()); // HTTPS
-});
-
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
