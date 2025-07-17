@@ -9,17 +9,13 @@ using System.Security.Claims;
 namespace AuthService.Controllers
 {
 
-
+    /// <summary>
+    /// Controller for authentication and user management operations.
+    /// </summary>
     [ApiController]
-    [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController(Services.AuthService authService) : ControllerBase
     {
-        private readonly Services.AuthService _authService;
-
-        public AuthController(Services.AuthService authService)
-        {
-            _authService = authService;
-        }
+        private readonly Services.AuthService _authService = authService;
 
         /// <summary>
         /// Registers a new user.
@@ -36,6 +32,11 @@ namespace AuthService.Controllers
             return Ok("User registered successfully");
         }
 
+        /// <summary>
+        /// Authenticates a user and returns a JWT token if successful.
+        /// </summary>
+        /// <param name="request">Login details including username and password.</param>
+        /// <returns>Login response containing token and user information, or error details.</returns>
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
@@ -54,6 +55,11 @@ namespace AuthService.Controllers
             }
         }
 
+        /// <summary>
+        /// Changes the role of a specified user. Only accessible by Admins.
+        /// </summary>
+        /// <param name="request">Request containing the user ID and the new role to assign.</param>
+        /// <returns>Result of the role change operation.</returns>
         [Authorize(Roles = "Admin")]
         [HttpPost("change-role")]
         public async Task<IActionResult> ChangeRole(ChangeRoleRequest request)
@@ -69,6 +75,11 @@ namespace AuthService.Controllers
             return Ok("User role updated");
         }
 
+        /// <summary>
+        /// Changes the password for the specified user. Only the user themselves can change their password.
+        /// </summary>
+        /// <param name="request">Request containing the user ID and the new password.</param>
+        /// <returns>Result of the password change operation.</returns>
         [Authorize]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
@@ -84,6 +95,11 @@ namespace AuthService.Controllers
             return Ok("Password updated");
         }
 
+        /// <summary>
+        /// Soft deletes a user by their ID. Only the user themselves, or users with Admin or Manager roles, can perform this action.
+        /// </summary>
+        /// <param name="id">The unique identifier of the user to delete.</param>
+        /// <returns>No content if successful, or an error response if not allowed or user not found.</returns>
         [Authorize]
         [HttpDelete("delete/{id:guid}")]
         public async Task<IActionResult> DeleteUser(Guid id)
@@ -109,6 +125,11 @@ namespace AuthService.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Restores a soft-deleted user by their ID. Only the user themselves, or users with Admin or Manager roles, can perform this action.
+        /// </summary>
+        /// <param name="id">The unique identifier of the user to restore.</param>
+        /// <returns>Result of the restore operation.</returns>
         [Authorize]
         [HttpPost("restore/{id:guid}")]
         public async Task<IActionResult> RestoreUser(Guid id)
@@ -134,6 +155,11 @@ namespace AuthService.Controllers
             return Ok("User restored successfully.");
         }
 
+        /// <summary>
+        /// Confirms a user account by their ID. Only accessible by Admins and Managers.
+        /// </summary>
+        /// <param name="id">The unique identifier of the user to confirm.</param>
+        /// <returns>Result of the confirmation operation.</returns>
         [Authorize(Roles = "Admin,Manager")]
         [HttpPost("confirm/{id:guid}")]
         public async Task<IActionResult> ConfirmUser(Guid id)
@@ -152,6 +178,11 @@ namespace AuthService.Controllers
             return Ok("User confirmed successfully.");
         }
 
+        /// <summary>
+        /// Confirms a user's email address using a confirmation token.
+        /// </summary>
+        /// <param name="token">The email confirmation token.</param>
+        /// <returns>Result of the email confirmation operation.</returns>
         [HttpGet("confirm-email")]
         public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
         {
@@ -166,6 +197,10 @@ namespace AuthService.Controllers
             return Ok("Email confirmed successfully.");
         }
 
+        /// <summary>
+        /// Returns the health status of the authentication service.
+        /// </summary>
+        /// <returns>Health status information.</returns>
         [HttpGet("health")]
         public IActionResult Health()
         {

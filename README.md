@@ -26,7 +26,7 @@ dotnet restore
 ```
 
 4. **Apply database migrations:**
-   Ensure your connection string in `appsettings.js	on` is correct.
+   Ensure your connection string in `appsettings.json` is correct.
 ```bash
 dotnet ef database update
 ```

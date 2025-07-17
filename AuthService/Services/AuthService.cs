@@ -15,49 +15,88 @@ using System.Text;
 
 namespace AuthService.Services
 {
+    /// <summary>
+    /// Provides authentication-related services such as user registration, login, role management, password changes, and user confirmation.
+    /// </summary>
     public class AuthService
+    (
+        AuthDbContext dbContext,
+        string jwtKey,
+        IOptions<LockoutSettings> lockoutOptions,
+        IGeoIpService geoIpService,
+        IEmailService emailService,
+        IMemoryCache cache)
     {
-        private readonly AuthDbContext _dbContext;
-        private readonly string _jwtKey;
-        private readonly LockoutSettings _lockoutSettings;
-        private readonly IGeoIpService _geoIpService;
-        private readonly IEmailService _emailService;
-        private readonly IMemoryCache _cache;
+        private readonly AuthDbContext _dbContext = dbContext;
+        private readonly string _jwtKey = jwtKey;
+        private readonly LockoutSettings _lockoutSettings = lockoutOptions.Value;
+        private readonly IGeoIpService _geoIpService = geoIpService;
+        private readonly IEmailService _emailService = emailService;
+        private readonly IMemoryCache _cache = cache;
 
-        public AuthService(AuthDbContext dbContext, string jwtKey, IOptions<LockoutSettings> lockoutOptions, IGeoIpService geoIpService, IEmailService emailService, IMemoryCache cache)
-        {
-            _dbContext = dbContext;
-            _jwtKey = jwtKey;
-            _lockoutSettings = lockoutOptions.Value;
-            _geoIpService = geoIpService;
-            _emailService = emailService;
-            _cache = cache;
-        }
-
+        /// <summary>
+        /// Registers a new user with the specified email and password.
+        /// Sends a confirmation email to the user with a token for email verification.
+        /// Returns true if registration is successful; false if the email is already in use.
+        /// </summary>
+        /// <param name="email">The email address of the user to register.</param>
+        /// <param name="password">The password for the new user.</param>
+        /// <returns>True if registration succeeds; otherwise, false.</returns>
         public async Task<bool> RegisterUser(string email, string password)
         {
+
             if (await _dbContext.Users.AnyAsync(u => u.Username == email))
+
                 return false;
 
+
+
             var token = Guid.NewGuid().ToString();
+
             var user = new User
+
             {
+
                 Email = email,
+
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+
                 EmailConfirmationToken = token,
+
                 EmailConfirmationTokenExpiry = DateTime.UtcNow.AddHours(24)
+
             };
 
+
+
             _dbContext.Users.Add(user);
+
             await _dbContext.SaveChangesAsync();
 
+
+
             // Send confirmation email (pseudo-code, replace with your email service)
+
             await _emailService.SendEmailAsync(email, "Confirm your account",
+
                 $"Please confirm your account by clicking this link: https://yourdomain.com/api/auth/confirm-email?token={token}");
 
-            return true;
-        }
 
+
+            return true;
+
+        }
+
+        /// <summary>
+        /// Authenticates a user with the specified username, password, and IP address.
+        /// Performs IP-based and user-based lockout checks, logs login attempts, and returns a JWT token if authentication succeeds.
+        /// Throws <see cref="IpLockedException"/> if the IP is locked out, <see cref="UserLockedException"/> if the user is locked out,
+        /// and <see cref="AuthenticationException"/> if authentication fails.
+        /// </summary>
+        /// <param name="username">The username of the user attempting to authenticate.</param>
+        /// <param name="password">The password of the user.</param>
+        /// <param name="ip">The IP address of the request.</param>
+        /// <returns>A <see cref="LoginResponse"/> containing authentication details if successful; otherwise, throws an exception.</returns>
         public async Task<LoginResponse?> Authenticate(string username, string password, string ip)
         {
             // Trusted IPs bypass IP lockout, but not user lockout
@@ -74,7 +113,7 @@ namespace AuthService.Services
 
                 if (failedCountIp >= _lockoutSettings.FailedAttemptsThreshold)
                 {
-                    var geoInfo = await _geoIpService.GetInfo(ip);
+                    var (country, region) = await _geoIpService.GetInfo(ip);
                     var blockedAttempt = new LoginAttempt
                     {
                         UserId = null,
@@ -83,8 +122,8 @@ namespace AuthService.Services
                         IpAddress = ip,
                         IsSuccessful = false,
                         Reason = "ip locked",
-                        Country = geoInfo.Country,
-                        Region = geoInfo.Region
+                        Country = country,
+                        Region = region
                     };
                     _dbContext.LoginAttempts.Add(blockedAttempt);
                     await _dbContext.SaveChangesAsync();
@@ -100,7 +139,7 @@ namespace AuthService.Services
 
                 if (failedCountUser >= _lockoutSettings.UserFailedAttemptsThreshold)
                 {
-                    var geoInfo = await _geoIpService.GetInfo(ip);
+                    var (userCountry, userRegion) = await _geoIpService.GetInfo(ip);
                     var blockedAttempt = new LoginAttempt
                     {
                         UserId = user.Id,
@@ -109,8 +148,8 @@ namespace AuthService.Services
                         IpAddress = ip,
                         IsSuccessful = false,
                         Reason = "user locked",
-                        Country = geoInfo.Country,
-                        Region = geoInfo.Region
+                        Country = userCountry,
+                        Region = userRegion
                     };
                     _dbContext.LoginAttempts.Add(blockedAttempt);
                     await _dbContext.SaveChangesAsync();
@@ -119,7 +158,7 @@ namespace AuthService.Services
             }
             var isSuccess = user != null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
 
-            var geoData = await _geoIpService.GetInfo(ip);
+            var (attemptCountry, attemptRegion) = await _geoIpService.GetInfo(ip);
 
             var attempt = new LoginAttempt
             {
@@ -129,8 +168,8 @@ namespace AuthService.Services
                 IpAddress = ip,
                 IsSuccessful = isSuccess,
                 Reason = isSuccess ? null : (user == null ? "user not found" : "invalid password"),
-                Country = geoData.Country,
-                Region = geoData.Region
+                Country = attemptCountry,
+                Region = attemptRegion
             };
 
             _dbContext.LoginAttempts.Add(attempt);
@@ -166,15 +205,27 @@ namespace AuthService.Services
             };
         }
 
+        /// <summary>
+        /// Retrieves a user by their unique identifier.
+        /// </summary>
+        /// <param name="userId">The unique identifier of the user.</param>
+        /// <returns>The <see cref="User"/> if found; otherwise, null.</returns>
         public async Task<User?> GetUserById(Guid userId)
         {
             return await _dbContext.Users.FindAsync(userId);
         }
 
+        /// <summary>
+        /// Changes the role of a user to the specified new role.
+        /// Returns false if the new role is Admin or if the user does not exist.
+        /// </summary>
+        /// <param name="userId">The unique identifier of the user whose role is to be changed.</param>
+        /// <param name="newRole">The new role to assign to the user.</param>
+        /// <returns>True if the role change succeeds; otherwise, false.</returns>
         public async Task<bool> ChangeUserRole(Guid userId, Role newRole)
         {
             if (newRole == Role.Admin)
-                return false;            
+                return false;
 
             var user = await _dbContext.Users.FindAsync(userId);
             if (user == null)
@@ -185,6 +236,13 @@ namespace AuthService.Services
             return true;
         }
 
+        /// <summary>
+        /// Changes the password of the specified user to a new password.
+        /// Returns false if the user does not exist.
+        /// </summary>
+        /// <param name="userId">The unique identifier of the user whose password is to be changed.</param>
+        /// <param name="newPassword">The new password to set for the user.</param>
+        /// <returns>True if the password change succeeds; otherwise, false.</returns>
         public async Task<bool> ChangeUserPassword(Guid userId, string newPassword)
         {
             var user = await GetUserById(userId);
@@ -198,6 +256,12 @@ namespace AuthService.Services
             return true;
         }
 
+        /// <summary>
+        /// Soft deletes a user by setting the IsDeleted flag and DateDeleted timestamp.
+        /// Returns false if the user does not exist or is already deleted.
+        /// </summary>
+        /// <param name="userId">The unique identifier of the user to soft delete.</param>
+        /// <returns>True if the user was successfully soft deleted; otherwise, false.</returns>
         public async Task<bool> SoftDeleteUser(Guid userId)
         {
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
@@ -210,6 +274,12 @@ namespace AuthService.Services
             return true;
         }
 
+        /// <summary>
+        /// Restores a previously soft-deleted user by unsetting the IsDeleted flag and clearing the DateDeleted timestamp.
+        /// Returns false if the user does not exist or is not deleted.
+        /// </summary>
+        /// <param name="userId">The unique identifier of the user to restore.</param>
+        /// <returns>True if the user was successfully restored; otherwise, false.</returns>
         public async Task<bool> RestoreUser(Guid userId)
         {
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
@@ -222,6 +292,12 @@ namespace AuthService.Services
             return true;
         }
 
+        /// <summary>
+        /// Confirms a user by setting the IsConfirmed flag to true.
+        /// Returns false if the user does not exist or is already confirmed.
+        /// </summary>
+        /// <param name="userId">The unique identifier of the user to confirm.</param>
+        /// <returns>True if the user was successfully confirmed; otherwise, false.</returns>
         public async Task<bool> ConfirmUser(Guid userId)
         {
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
@@ -233,6 +309,11 @@ namespace AuthService.Services
             return true;
         }
 
+        /// <summary>
+        /// Retrieves a user by their email confirmation token if the token is valid and not expired.
+        /// </summary>
+        /// <param name="token">The email confirmation token to search for.</param>
+        /// <returns>The <see cref="User"/> if found and token is valid; otherwise, null.</returns>
         public async Task<User?> GetUserByConfirmationToken(string token)
         {
             return await _dbContext.Users.FirstOrDefaultAsync(u =>
@@ -240,6 +321,13 @@ namespace AuthService.Services
                 u.EmailConfirmationTokenExpiry > DateTime.UtcNow);
         }
 
+        /// <summary>
+        /// Confirms a user by their email confirmation token.
+        /// Sets the user's IsConfirmed flag to true and clears the confirmation token and expiry.
+        /// Returns false if the token is invalid or expired, or if the user does not exist.
+        /// </summary>
+        /// <param name="token">The email confirmation token to validate and confirm the user.</param>
+        /// <returns>True if the user was successfully confirmed; otherwise, false.</returns>
         public async Task<bool> ConfirmUserByToken(string token)
         {
             var user = await GetUserByConfirmationToken(token);
@@ -253,23 +341,42 @@ namespace AuthService.Services
             return true;
         }
 
-        // Example: Cache user role lookup
+        /// <summary>
+        /// Retrieves the role of a user by their unique identifier.
+        /// Returns the user's role if found and not deleted; otherwise, null.
+        /// </summary>
+        /// <param name="userId">The unique identifier of the user.</param>
+        /// <returns>The <see cref="Role"/> of the user if found; otherwise, null.</returns>
         public async Task<Role?> GetUserRole(Guid userId)
         {
+
             string cacheKey = $"user_role_{userId}";
+
             if (_cache.TryGetValue<Role>(cacheKey, out var cachedRole))
+
                 return cachedRole;
 
+
+
             var user = await _dbContext.Users
+
                 .Where(u => u.Id == userId && !u.IsDeleted)
+
                 .Select(u => u.Role)
+
                 .FirstOrDefaultAsync();
 
+
+
             if (user != default)
+
                 _cache.Set(cacheKey, user, TimeSpan.FromMinutes(10));
 
+
+
             return user;
-        }
+
+        }
     }
 
 }

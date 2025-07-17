@@ -4,16 +4,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AuthService.Services
 {
-    public class UserCleanupService : BackgroundService
+    /// <summary>
+    /// Background service that periodically removes expired or old user accounts from the database.
+    /// </summary>
+    public class UserCleanupService(IServiceScopeFactory scopeFactory) : BackgroundService
     {
-        private readonly IServiceScopeFactory _scopeFactory;
+        /// <summary>
+        /// Factory for creating service scopes.
+        /// </summary>
+        private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
+
+        /// <summary>
+        /// The interval between cleanup operations.
+        /// </summary>
         private readonly TimeSpan _interval = TimeSpan.FromHours(1); // Run every hour
 
-        public UserCleanupService(IServiceScopeFactory scopeFactory)
-        {
-            _scopeFactory = scopeFactory;
-        }
-
+        /// <summary>
+        /// Executes the background cleanup task.
+        /// Periodically deletes users whose confirmation token has expired and are not confirmed,
+        /// as well as users older than 90 days.
+        /// </summary>
+        /// <param name="stoppingToken">Token to signal cancellation of the background task.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -34,7 +46,7 @@ namespace AuthService.Services
 
                 var toDelete = expiredUnconfirmed.Concat(oldUsers).Distinct().ToList();
 
-                if (toDelete.Any())
+                if (toDelete.Count > 0)
                 {
                     dbContext.Users.RemoveRange(toDelete);
                     await dbContext.SaveChangesAsync(stoppingToken);

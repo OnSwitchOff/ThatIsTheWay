@@ -9,7 +9,7 @@ namespace AuthService.Tests;
 
 public class LockoutTests
 {
-    private AuthDbContext GetDbContext()
+    private static AuthDbContext GetDbContext()
     {
         var options = new DbContextOptionsBuilder<AuthDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -17,11 +17,11 @@ public class LockoutTests
         return new AuthDbContext(options);
     }
 
-    private LockoutSettings GetTestLockoutSettings() => new LockoutSettings
+    private static LockoutSettings GetTestLockoutSettings() => new()
     {
         FailedAttemptsThreshold = 4,
         LockoutMinutes = 1,
-        TrustedIps = new List<string>(),
+        TrustedIps = { },
         UserFailedAttemptsThreshold = 3,
         UserLockoutMinutes = 1
     };
