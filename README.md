@@ -68,15 +68,16 @@ See Swagger UI for full details and try out endpoints interactively.
 
 Configuration is managed via `appsettings.json` and environment variables. Key settings:
 
-- `ConnectionStrings:DefaultConnection` – SQL Server connection string
-- `Jwt:Key` – Secret key for JWT token generation
-- `Jwt:Issuer` – JWT issuer
-- `Jwt:Audience` – JWT audience
-- `Email:SmtpServer`, `Email:Port`, `Email:Username`, `Email:Password` – SMTP settings for email confirmation
+- `ConnectionStrings:DefaultConnection` â€“ SQL Server connection string
+- `Jwt:Key` â€“ Secret key for JWT token generation
+- `Jwt:Issuer` â€“ JWT issuer
+- `Jwt:Audience` â€“ JWT audience
+- `Email:SmtpServer`, `Email:Port`, `Email:Username`, `Email:Password` â€“ SMTP settings for email confirmation
 
 ## Testing
 
 Run unit tests:
+
 	```bash
 	dotnet test
 	```
@@ -84,6 +85,7 @@ Run unit tests:
 ## Docker
 
 To build and run with Docker:
+
 	```bash
 	docker build -t authservice . docker run -p 5000:80 authservice
 	```
