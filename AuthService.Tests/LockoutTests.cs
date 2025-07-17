@@ -45,7 +45,8 @@ public class LockoutTests
 
         // Use a fake GeoIpService (or mock)
         var geoService = new FakeGeoIpService();
-        var service = new Services.AuthService(dbContext, null, options, geoService);
+        var jwtKey = "test_jwt_key_123"; // Use any test key string
+        var service = new Services.AuthService(dbContext, jwtKey, options, geoService);
 
         // Act: Fail to login 3 times (user threshold) - should lock user
         for (int i = 0; i < lockoutSettings.UserFailedAttemptsThreshold; i++)

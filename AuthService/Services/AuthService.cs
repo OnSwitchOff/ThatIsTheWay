@@ -17,14 +17,14 @@ namespace AuthService.Services
     public class AuthService
     {
         private readonly AuthDbContext _dbContext;
-        private readonly IConfiguration _configuration;
+        private readonly string _jwtKey;
         private readonly LockoutSettings _lockoutSettings;
         private readonly IGeoIpService _geoIpService;
 
-        public AuthService(AuthDbContext dbContext, IConfiguration configuration, IOptions<LockoutSettings> lockoutOptions, IGeoIpService geoIpService)
+        public AuthService(AuthDbContext dbContext, string jwtKey, IOptions<LockoutSettings> lockoutOptions, IGeoIpService geoIpService)
         {
             _dbContext = dbContext;
-            _configuration = configuration;
+            _jwtKey = jwtKey;
             _lockoutSettings = lockoutOptions.Value;
             _geoIpService = geoIpService;
         }
@@ -133,7 +133,7 @@ namespace AuthService.Services
                 new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
